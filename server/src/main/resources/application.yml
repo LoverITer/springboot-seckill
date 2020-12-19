@@ -1,0 +1,141 @@
+#开发环境
+host-sub-ip: 192.168.70 #主机子ip
+server:
+  port: 9091
+  connection-timeout: 20000  #超时时间20s
+  tomcat:
+    max-threads: 400
+    min-spare-threads: 100
+    accept-count: 400
+debug: true
+#logging
+logging:
+  config: classpath:logback-spring.xml
+  file: log
+  level:
+    root: info
+    top.easyblog.seckill: debug
+
+#springboot相关配置
+spring:
+  mvc:
+    throw-exception-if-no-handler-found: true
+  resources:
+    add-mappings: false
+  #thymeleaf配置
+  thymeleaf:
+    enabled: true
+    cache: false
+    prefix: classpath:/templates/
+    suffix: .html
+    mode: HTML
+    encoding: UTF-8
+    servlet:
+      content-type: text/html
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+  datasource:
+    #ָ数据源配置
+    type: com.alibaba.druid.pool.DruidDataSource
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${host-sub-ip}.128:3306/miaosha?autoReconnect=true&useSSL=false&characterEncoding=utf-8&zeroDateTimeBehavior=convertToNull&serverTimezone=Asia/Shanghai
+    username: root #用户名
+    password: 95162437hx$ #密码
+    druid:
+      stat-view-servlet:
+        enabled: true
+        url-pattern: /druid/*
+        login-password: 123456
+        login-username: Admin
+        reset-enable: false
+      web-stat-filter:
+        enabled: true
+        exclusions: .js,.css,.html,/druid/*
+        url-pattern: /*
+      filters: stat,wall,logback
+      initial-size: 5
+      min-idle: 5
+      max-active: 20
+      max-wait: 60000
+      time-between-eviction-runs-millis: 60000
+      min-evictable-idle-time-millis: 300000
+      validation-query: SELECT 1 FROM DUAL
+      test-while-idle: true
+      test-on-borrow: false
+      test-on-return: false
+      pool-prepared-statements: true
+      max-pool-prepared-statement-per-connection-size: 20
+      use-global-data-source-stat: true
+      connection-properties: druid.stat.mergeSql=true;druid.stat.slowSqlMillis=500
+  devtools:
+    livereload:
+      enabled: true
+    restart:
+      additional-paths: src/main/java
+  #Redis配置
+  redis:
+    host: ${host-sub-ip}.128
+    port: 6379
+    database: 0
+    ssl: false
+    timeout: 10000
+    #springBoot 2.x推荐使用lettuce作为Redis客户端 Spring1.x推荐使用jedis
+    lettuce:
+      pool:
+        max-active: 800
+        min-idle: 100
+        max-idle: 800
+        max-wait: 20000ms
+      shutdown-timeout: 100ms
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 20MB
+      enabled: true
+  jmx:
+    enabled: false
+  #邮件服务配置
+  mail:
+    host: smtp.qq.com
+    password: jczjfybpfvredjec
+    username: huangxin9830@qq.com
+    properties:
+      mail.smpt.ssl: true
+mail:
+  send-from: 2489868503@qq.com
+  kill:
+    item:
+      success:
+        subject: 抢购成功
+        content: 您好，您以成功抢购到商品：<strong><font color=red>%s</font></strong>，复制该链接并在浏览器中采用新页面打开，即可查看订单详情：<a href="%s" target="_blank">%s</a>，并请在1小时内支付订单，超时订单就失效了哦！祝您生活愉快！
+      time-out:
+        subject: 订单超时失效
+        content: 您好，您抢购的商品：<strong><font color=red>%s</font></strong>，由于超时未支付，订单已失效！
+
+#MyBatis配置
+mybatis:
+  config-location: classpath:/mybatis/mybatis-config.xml
+  mapper-locations: classpath:/mybatis/top.easyblog.seckill.model.mapper/*.xml
+#RocketMQ配置
+rocketmq:
+  name-server: ${host-sub-ip}.128:9876;${host-sub-ip}.130:9876
+  producer:
+    group: kill-group
+    retry-times-when-send-failed: 3
+    retry-next-server: true
+mq:
+  #异步发送邮件的topic
+  email:
+    consumer:
+      group: kill-success-email-group
+    topic: kill-success-email-topic
+  #订单超时为支付的topic
+  order:
+    consumer:
+      group: kill-order-timout-group
+    topic: kill-order-timeout-topic
+  local-cache:
+    consumer:
+      group: kill-local_cache-brodcast
+    topic: kill-local_cache-toppic

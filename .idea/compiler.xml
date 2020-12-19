@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <annotationProcessing>
+      <profile name="Maven default annotation processors profile" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <module name="cache" />
+        <module name="api" />
+        <module name="server" />
+        <module name="model" />
+      </profile>
+    </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="api" target="1.8" />
+      <module name="cache" target="1.8" />
+      <module name="model" target="1.8" />
+      <module name="server" target="1.8" />
+      <module name="springboot-seckill" target="1.8" />
+    </bytecodeTargetLevel>
+  </component>
+  <component name="JavacSettings">
+    <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="api" options="-parameters" />
+      <module name="cache" options="-parameters" />
+      <module name="model" options="-parameters" />
+      <module name="server" options="-parameters" />
+      <module name="springboot-seckill" options="" />
+    </option>
+  </component>
+</project>
