@@ -7,14 +7,14 @@ import top.easyblog.seckill.cache.Cache;
  * @Description ： 用于构建一个本地缓存实例
  * @data ：2020/12/18 16:49
  */
-public interface CacheBuilder<K, V> {
+public interface CacheBuilder{
 
     /**
      * 构建一个本地缓存实例
      *
      * @return   本地缓存实例
      */
-    Cache<K, V> build(String cacheName);
+    Cache build(String cacheName);
 
 
 }

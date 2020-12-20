@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @Description ： GuavaCache建造者：用于构建一个基于谷歌Guava Cache的本地缓存
  * @data ：2020/12/18 16:53
  */
-public class GuavaCacheBuilder<K, V> implements CacheBuilder {
+public class GuavaCacheBuilder implements CacheBuilder {
 
 
     /**
@@ -48,11 +48,9 @@ public class GuavaCacheBuilder<K, V> implements CacheBuilder {
     /**
      * 构造缓存建造器
      *
-     * @param <K>
-     * @param <V>
      * @return
      */
-    public static <K, V> GuavaCacheBuilder<K, V> newBuilder() {
+    public static  GuavaCacheBuilder newBuilder() {
         guavaConfig.setInstanceId("GUAVA-CACHE-"+ CACHE_COUNTER.incrementAndGet());
         guavaConfig.setInitCapacity(DEFAULT_INITIAL_CAPACITY);
         guavaConfig.setMaxCapacity(DEFAULT_MAX_CAPACITY);
@@ -61,50 +59,50 @@ public class GuavaCacheBuilder<K, V> implements CacheBuilder {
         guavaConfig.setRefreshPeriod(DEFAULT_REFRESH);
         guavaConfig.setCacheSyncPolicy(DEFAULT_CACHE_SYNC_POLICY);
         guavaConfig.setAutoRefreshExpireCache(true);
-        return new GuavaCacheBuilder<>();
+        return new GuavaCacheBuilder();
     }
 
 
     @Override
-    public Cache<K, V>  build(String cacheName) {
-        GuavaLocalCache<K, V> guavaLocalCache = new GuavaLocalCache<>(cacheName, guavaConfig);
+    public Cache build(String cacheName) {
+        GuavaLocalCache guavaLocalCache = new GuavaLocalCache(cacheName, guavaConfig);
         cacheSupport.setCache(guavaConfig.getInstanceId(), guavaLocalCache);
         return guavaLocalCache;
     }
 
 
-    public GuavaCacheBuilder<K, V> initialCapacity(int initCapacity) {
+    public GuavaCacheBuilder initialCapacity(int initCapacity) {
         guavaConfig.setInitCapacity(initCapacity);
         return this;
     }
 
-    public GuavaCacheBuilder<K,V> maximumSize(int maximumSize){
+    public GuavaCacheBuilder maximumSize(int maximumSize){
         guavaConfig.setMaxCapacity(maximumSize);
         return this;
     }
 
-    public GuavaCacheBuilder<K, V> concurrencyLevel(int concurrencyLevel) {
+    public GuavaCacheBuilder concurrencyLevel(int concurrencyLevel) {
         guavaConfig.setMaxConcurrencyLevel(concurrencyLevel);
         return this;
     }
 
-    public GuavaCacheBuilder<K, V> expireAfterWrite(int expireTime, TimeUnit timeUnit) {
+    public GuavaCacheBuilder expireAfterWrite(int expireTime, TimeUnit timeUnit) {
         guavaConfig.setExpireTime(new GuavaCacheConfig.ExpireTime(expireTime,timeUnit));
         return this;
     }
 
-    public GuavaCacheBuilder<K, V> refreshPeriod(long refreshPeriod) {
+    public GuavaCacheBuilder refreshPeriod(long refreshPeriod) {
         guavaConfig.setRefreshPeriod(refreshPeriod);
         return this;
     }
 
-    public GuavaCacheBuilder<K, V> autoRefreshExpireCache(boolean autoRefreshExpireCache) {
+    public GuavaCacheBuilder autoRefreshExpireCache(boolean autoRefreshExpireCache) {
         guavaConfig.setAutoRefreshExpireCache(autoRefreshExpireCache);
         return this;
     }
 
 
-    public GuavaCacheBuilder<K, V> cacheSyncPolicy(CacheSyncPolicy syncPolicy){
+    public GuavaCacheBuilder cacheSyncPolicy(CacheSyncPolicy syncPolicy){
         guavaConfig.setCacheSyncPolicy(syncPolicy);
         return this;
     }

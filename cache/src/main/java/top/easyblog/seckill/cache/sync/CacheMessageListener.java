@@ -1,6 +1,7 @@
 package top.easyblog.seckill.cache.sync;
 
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.spring.annotation.MessageModel;
@@ -56,7 +57,7 @@ public class CacheMessageListener implements RocketMQListener<MessageExt> {
                 }
                 if (CacheOpt.CACHE_REFRESH.equals(message.getOptType())) {
                     //更新缓存
-                    level1Cache.refresh(message.getKey());
+                    level1Cache.refresh(message.getKey(),message.getValue());
                     log.debug("本地缓存缓存更新成功");
                 } else {
                     level1Cache.clearLocalCache(message.getKey());

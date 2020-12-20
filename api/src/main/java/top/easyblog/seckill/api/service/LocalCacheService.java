@@ -1,5 +1,9 @@
 package top.easyblog.seckill.api.service;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
+
 /**
  * 本地热点缓存
  *
@@ -16,7 +20,8 @@ public interface LocalCacheService {
      * @param value
      * @return
      */
-    void set(String key, Object value);
+    void set(String key, JSON value);
+
 
     /**
      * 从本地热点缓存中获取数据
@@ -24,6 +29,6 @@ public interface LocalCacheService {
      * @param key
      * @return
      */
-    Object get(String key);
+    JSON get(String key);
 
 }

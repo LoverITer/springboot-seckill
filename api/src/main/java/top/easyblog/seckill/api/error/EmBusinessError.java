@@ -23,6 +23,9 @@ public enum EmBusinessError implements CommonError {
     ITEM_NOT_FOND(40001,"不存在的商品记录"),
     ITEM_USER_KILLED(40002,"您已经抢购过该商品了"),
 
+
+    //5开头的都是订单的一些信息
+    ORDER_INVAILD(50001, "订单无效")
     ;
 
     private int errCode;

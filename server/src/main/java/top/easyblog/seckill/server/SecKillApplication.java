@@ -15,7 +15,11 @@ import org.springframework.web.servlet.config.annotation.EnableWebMvc;
  */
 @EnableTransactionManagement
 @EnableWebMvc
-@SpringBootApplication(scanBasePackages = {"top.easyblog.seckill.server","top.easyblog.seckill.cache"})
+@SpringBootApplication(
+        scanBasePackages = {"top.easyblog.seckill.server",
+                "top.easyblog.seckill.cache",
+        "top.easyblog.seckill.model",
+                "top.easyblog.seckill.api",})
 @MapperScan(basePackages = "top.easyblog.seckill.model.mapper")
 public class SecKillApplication extends SpringBootServletInitializer {
 

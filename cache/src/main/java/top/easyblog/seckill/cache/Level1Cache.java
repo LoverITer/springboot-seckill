@@ -1,12 +1,15 @@
 package top.easyblog.seckill.cache;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
+
 /**
  * 一级缓存
  *
  * @author Huang Xin
  * @date 2020/6/30 10:54
  */
-public interface Level1Cache<K,V> extends Cache<K,V> {
+public interface Level1Cache extends Cache{
 
     /**
      * 缓存同步策略
@@ -26,7 +29,7 @@ public interface Level1Cache<K,V> extends Cache<K,V> {
     /**
      * 清理本地缓存
      */
-    void clearLocalCache(K key);
+    void clearLocalCache(String key);
 
     /**
      * 异步加载{@code key}的新值
@@ -34,7 +37,7 @@ public interface Level1Cache<K,V> extends Cache<K,V> {
      *
      * @see Level1Cache#isLoadingCache() 为true才能执行refresh方法
      */
-    void refresh(K key);
+    void refresh(String key, JSON value);
 
 
     /**
@@ -51,7 +54,7 @@ public interface Level1Cache<K,V> extends Cache<K,V> {
      *
      * @see Level1Cache#isLoadingCache() 为true才能执行该方法
      */
-    void refreshExpireCache(K key);
+    void refreshExpireCache(String key);
 
     /**
      * 刷新所有过期的缓存

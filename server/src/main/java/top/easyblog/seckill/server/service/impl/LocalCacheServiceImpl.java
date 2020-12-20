@@ -1,6 +1,9 @@
 package top.easyblog.seckill.server.service.impl;
 
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -9,7 +12,6 @@ import top.easyblog.seckill.api.service.LocalCacheService;
 import top.easyblog.seckill.cache.Cache;
 import top.easyblog.seckill.cache.CacheSyncPolicy;
 import top.easyblog.seckill.cache.builder.impl.GuavaCacheBuilder;
-import top.easyblog.seckill.cache.sync.RocketMQLocalCacheSyncPolicy;
 
 import javax.annotation.PostConstruct;
 import java.util.concurrent.TimeUnit;
@@ -24,7 +26,7 @@ import java.util.concurrent.TimeUnit;
 public final class LocalCacheServiceImpl implements LocalCacheService {
 
 
-    private Cache<String, Object> commentCache = null;
+    private Cache commentCache = null;
 
     @Autowired
     private CacheSyncPolicy cacheSyncPolicy;
@@ -32,7 +34,7 @@ public final class LocalCacheServiceImpl implements LocalCacheService {
 
     @PostConstruct
     public void init() {
-        GuavaCacheBuilder<String, Object> cacheBuilder = GuavaCacheBuilder.newBuilder();
+        GuavaCacheBuilder cacheBuilder = GuavaCacheBuilder.newBuilder();
         //缓存的初始容量
         commentCache = cacheBuilder.initialCapacity(16)
                 //缓存的最大容量
@@ -40,7 +42,7 @@ public final class LocalCacheServiceImpl implements LocalCacheService {
                 //最大操作缓存
                 .concurrencyLevel(10)
                 //缓存失效时间
-                .expireAfterWrite(60, TimeUnit.MINUTES)
+                .expireAfterWrite(60, TimeUnit.SECONDS)
                 //本地缓存同步策略
                 .cacheSyncPolicy(cacheSyncPolicy)
                 .build("guava-local-cache-1");
@@ -48,14 +50,15 @@ public final class LocalCacheServiceImpl implements LocalCacheService {
 
 
     @Override
-    public void set(String key, Object value) {
+    public void set(String key, JSON value) {
         if (!StringUtils.isEmpty(key) && !StringUtils.isEmpty(value)) {
             commentCache.put(key, value);
         }
     }
 
+
     @Override
-    public Object get(String key) {
+    public JSON get(String key) {
         if (!StringUtils.isEmpty(key)) {
             return commentCache.get(key);
         }

@@ -1,19 +1,22 @@
 package top.easyblog.seckill.server.service.impl;
 
+import com.alibaba.fastjson.JSON;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import top.easyblog.seckill.model.entity.ItemDO;
-import top.easyblog.seckill.model.entity.ItemStockDO;
-import top.easyblog.seckill.model.mapper.ItemDOMapper;
-import top.easyblog.seckill.model.mapper.ItemStockDOMapper;
 import top.easyblog.seckill.api.error.BusinessException;
 import top.easyblog.seckill.api.error.EmBusinessError;
 import top.easyblog.seckill.api.service.ItemService;
 import top.easyblog.seckill.api.service.PromoService;
 import top.easyblog.seckill.model.ItemModel;
 import top.easyblog.seckill.model.PromoModel;
+import top.easyblog.seckill.model.entity.ItemDO;
+import top.easyblog.seckill.model.entity.ItemStockDO;
+import top.easyblog.seckill.model.mapper.ItemDOMapper;
+import top.easyblog.seckill.model.mapper.ItemStockDOMapper;
+import top.easyblog.seckill.server.service.RedisService;
 import top.easyblog.seckill.server.validator.ValidationResult;
 import top.easyblog.seckill.server.validator.ValidatorImpl;
 
@@ -39,6 +42,12 @@ public class ItemServiceImpl implements ItemService {
     @Autowired
     private ItemStockDOMapper itemStockDOMapper;
 
+    @Autowired
+    private RedisService redisService;
+
+
+    private static final String ITEM_VALIDATE_PREFIX = "item_validate_";
+
     private ItemDO convertItemDOFromItemModel(ItemModel itemModel){
         if(itemModel == null){
             return null;
@@ -60,7 +69,7 @@ public class ItemServiceImpl implements ItemService {
     }
 
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class, propagation = Propagation.REQUIRES_NEW)
     public ItemModel createItem(ItemModel itemModel) throws BusinessException {
         //校验入参
         ValidationResult result = validator.validate(itemModel);
@@ -114,22 +123,35 @@ public class ItemServiceImpl implements ItemService {
         return itemModel;
     }
 
-    @Override
-    @Transactional
-    public boolean decreaseStock(Integer itemId, Integer amount) throws BusinessException {
-        int affectedRow =  itemStockDOMapper.decreaseStock(itemId,amount);
-        if(affectedRow > 0){
-            //更新库存成功
-            return true;
-        }else{
-            //更新库存失败
-            return false;
-        }
 
+    /**
+     * 优化：优先从Redis缓存中获取商品信息，如果没有再从数据库中查询
+     *
+     * @param itemId
+     * @return
+     */
+    @Override
+    public ItemModel getItemByIdInCache(Integer itemId) {
+        if (itemId <= 0) {
+            return null;
+        }
+        ItemModel itemModel = JSON.parseObject((String) redisService.get(ITEM_VALIDATE_PREFIX + itemId, RedisService.RedisDataBaseSelector.DB_0), ItemModel.class);
+        if (itemModel == null) {
+            itemModel = this.getItemById(itemId);
+            //10分钟有效期
+            redisService.set(ITEM_VALIDATE_PREFIX + itemId, JSON.toJSONString(itemModel), 600, RedisService.RedisDataBaseSelector.DB_0);
+        }
+        return itemModel;
     }
 
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class, propagation = Propagation.REQUIRES_NEW)
+    public boolean decreaseStock(Integer itemId, Integer amount) throws BusinessException {
+        return itemStockDOMapper.decreaseStock(itemId, amount) > 0;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class, propagation = Propagation.REQUIRES_NEW)
     public void increaseSales(Integer itemId, Integer amount) throws BusinessException {
         itemDOMapper.increaseSales(itemId,amount);
     }

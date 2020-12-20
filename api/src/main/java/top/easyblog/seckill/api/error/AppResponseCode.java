@@ -70,7 +70,7 @@ public enum AppResponseCode {
     //已经退款
     USER_MONEY_REFUND_ALREADY(true, 30004, "订单已经退过款"),
     //用户没有登录
-    USER_NOT_LOGIN(false, 30005, "用户不存在"),
+    USER_NOT_LOGIN(false, 30005, "用户未登录"),
     //用户登录成功
     USER_LOGIN_SUCCESS(true, 30006, "用户登录成功"),
     //用户登录失败

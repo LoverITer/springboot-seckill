@@ -1,12 +1,7 @@
 package top.easyblog.seckill.cache;
 
 
-import top.easyblog.seckill.cache.utils.NullValueUtil;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.Callable;
+import com.alibaba.fastjson.JSON;
 
 /**
  * 定义公共缓存操作的接口
@@ -16,7 +11,7 @@ import java.util.concurrent.Callable;
  * @author Huang Xin
  * @date 2020/6/16 19:49
  */
-public interface Cache<K,V> {
+public interface Cache {
 
 
     /**
@@ -42,12 +37,12 @@ public interface Cache<K,V> {
     /**
      * 获取指定key的缓存项
      */
-    V get(K key);
+    JSON get(String key);
 
     /**
      * 获取指定key的缓存项，并返回指定类型的返回值
      */
-    default <T> T get(K key, Class<T> type) {
+    default <T> T get(String key, Class<T> type) {
         Object value = get(key);
         if (null == value) {
             return null;
@@ -62,14 +57,14 @@ public interface Cache<K,V> {
     /**
      * 设置指定key的缓存项
      */
-    void put(K key, V value);
+    void put(String key, JSON value);
 
     /**
      * 如果指定的key不存在，则设置缓存项，如果存在，则返回存在的值
      *
-     * @see #put(K, V)
+     * @see #put(String, JSON)
      */
-    default Object putIfAbsent(K key, V value) {
+    default Object putIfAbsent(String key, JSON value) {
         Object existingValue = get(key);
         if (existingValue == null) {
             put(key, value);
@@ -81,7 +76,7 @@ public interface Cache<K,V> {
     /**
      * 删除指定的缓存项（如果存在）
      */
-    void evict(K key);
+    void evict(String key);
 
     /**
      * 删除所有缓存项
@@ -93,6 +88,6 @@ public interface Cache<K,V> {
      *
      * @return true 表示存在，false 表示不存在
      */
-    boolean isExists(K key);
+    boolean isExists(String key);
 
 }

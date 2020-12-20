@@ -9,7 +9,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * 缓存适配器
  * @author Huang Xin
  */
-public abstract class AbstractAdaptingCache<K,V> implements Cache<K,V>{
+public abstract class AbstractAdaptingCache implements Cache{
 
 
     /**

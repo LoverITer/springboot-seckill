@@ -1,6 +1,8 @@
 package top.easyblog.seckill.api.utils;
 
 
+import org.springframework.stereotype.Component;
+
 /**
  * 基于雪花算法的实现的ID生成器
  * @author huangxin
@@ -48,6 +50,7 @@ public class IDWorker {
         this.datacenterId = datacenterId;
         this.machineId = machineId;
     }
+
 
     /**
      * 产生下一个ID

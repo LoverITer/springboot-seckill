@@ -1,29 +1,27 @@
 package top.easyblog.seckill.server.service.impl;
 
-import top.easyblog.seckill.model.entity.SequenceDO;
-import top.easyblog.seckill.api.service.UserService;
-import top.easyblog.seckill.model.ItemModel;
-import top.easyblog.seckill.model.UserModel;
-import top.easyblog.seckill.model.mapper.OrderDOMapper;
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import top.easyblog.seckill.api.error.BusinessException;
 import top.easyblog.seckill.api.error.EmBusinessError;
 import top.easyblog.seckill.api.service.ItemService;
 import top.easyblog.seckill.api.service.OrderService;
+import top.easyblog.seckill.api.service.UserService;
+import top.easyblog.seckill.model.ItemModel;
 import top.easyblog.seckill.model.OrderModel;
-import top.easyblog.seckill.model.mapper.SequenceDOMapper;
 import top.easyblog.seckill.model.entity.OrderDO;
-import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
+import top.easyblog.seckill.model.mapper.OrderDOMapper;
+import top.easyblog.seckill.model.mapper.SequenceDOMapper;
+import top.easyblog.seckill.server.service.IDGenerationService;
+import top.easyblog.seckill.server.service.RocketMQProducerService;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 
 /**
- * Created by hzllb on 2018/11/18.
+ *
+ * @author Huang Xin
  */
 @Service
 public class OrderServiceImpl implements OrderService {
@@ -40,41 +38,75 @@ public class OrderServiceImpl implements OrderService {
     @Autowired
     private OrderDOMapper orderDOMapper;
 
+    @Autowired
+    private IDGenerationService idGenerationService;
+
+    @Autowired
+    private RocketMQProducerService service;
+
+    /**
+     * 用户对同一件商品购买数量的限制
+     */
+    private static final Integer USER_PURCHASE_AMOUNT_IN_ONE_ITEM_LIMIT = 2;
+
+
+    /**
+     * 秒杀下单核心业务逻辑
+     *
+     * @param userId
+     * @param itemId
+     * @param promoId
+     * @param amount
+     * @return
+     * @throws BusinessException
+     */
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public OrderModel createOrder(Integer userId, Integer itemId, Integer promoId, Integer amount) throws BusinessException {
-        //1.校验下单状态,下单的商品是否存在，用户是否合法，购买数量是否正确
+
+        /*1. 购买数量前置检查
+         * 首先需要校验购买的数量是大于0，不能产生一个空的或无效的订单
+         * 其次，用户可能多次下单，因此需要限制一个用户对同一个产品无论下单多少次，都只能购买2件
+         * 在者需要验证用户下单时所需购买量 库存是否满足
+         */
+        Integer purchaseAmount = orderDOMapper.selectUserPurchaseAmount(userId, itemId);
+        /*if (amount <= 0 || purchaseAmount >= USER_PURCHASE_AMOUNT_IN_ONE_ITEM_LIMIT ||
+                amount + purchaseAmount > USER_PURCHASE_AMOUNT_IN_ONE_ITEM_LIMIT) {
+            throw new BusinessException(EmBusinessError.ITEM_USER_KILLED, "同一件商品购买数量不能超过两件");
+        }*/
+
+        //2.校验下单状态,下单的商品是否存在，购买数量是否足够
         ItemModel itemModel = itemService.getItemById(itemId);
-        if(itemModel == null){
-            throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR,"商品信息不存在");
+        if (itemModel == null || itemModel.getStock() < 0) {
+            throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR, "商品不存在或者未在秒杀时间段");
         }
 
-        UserModel userModel = userService.getUserById(userId);
-        if(userModel == null){
-            throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR,"用户信息不存在");
-        }
-        if(amount <= 0 || amount > 99){
-            throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR,"数量信息不正确");
+        /*
+         * 3. 购买数量后置检查
+         * 需要验证用户下单时所需购买量 库存是否满足
+         */
+        if (itemModel.getStock() - amount < 0) {
+            throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR, "用户抢购物品数量不正确");
         }
 
-        //校验活动信息
+        /*
+         *4. 校验活动信息
+         * 主要是检查用户下单时当前商品是否处于秒杀活动状态，通过一个标志位实现
+         */
         if(promoId != null){
-            //（1）校验对应活动是否存在这个适用商品
-            if(promoId.intValue() != itemModel.getPromoModel().getId()){
-                throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR,"活动信息不正确");
-                //（2）校验活动是否正在进行中
-            }else if(itemModel.getPromoModel().getStatus().intValue() != 2) {
-                throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR,"活动信息还未开始");
+            if (itemModel.getPromoModel().getStatus() != 2) {
+                //校验活动是否正在进行中
+                throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR, "秒杀活动还未开始，请稍等！");
             }
         }
 
-        //2.落单减库存
+        //5. 落单减库存
         boolean result = itemService.decreaseStock(itemId,amount);
         if(!result){
             throw new BusinessException(EmBusinessError.STOCK_NOT_ENOUGH);
         }
 
-        //3.订单入库
+        //6. 订单入库
         OrderModel orderModel = new OrderModel();
         orderModel.setUserId(userId);
         orderModel.setItemId(itemId);
@@ -87,46 +119,24 @@ public class OrderServiceImpl implements OrderService {
         orderModel.setPromoId(promoId);
         orderModel.setOrderPrice(orderModel.getItemPrice().multiply(new BigDecimal(amount)));
 
-        //生成交易流水号,订单号
-        orderModel.setId(generateOrderNo());
+        //使用雪花算法生成交易流水号,订单号
+        orderModel.setId(String.valueOf(idGenerationService.nextId()));
         OrderDO orderDO = convertFromOrderModel(orderModel);
         orderDOMapper.insertSelective(orderDO);
 
-        //加上商品的销量
+        //7. 增加商品的销量
         itemService.increaseSales(itemId,amount);
-        //4.返回前端
+
+        /*
+        * 8. 返回订单给前端，后续交给支付模块处理
+        * 这里为了防止用户超时为支付，需要使用MQ实现用户超时之后库存恢复的过程
+         */
+
         return orderModel;
     }
 
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public String generateOrderNo(){
-        //订单号有16位
-        StringBuilder stringBuilder = new StringBuilder();
-        //前8位为时间信息，年月日
-        LocalDateTime now = LocalDateTime.now();
-        String nowDate = now.format(DateTimeFormatter.ISO_DATE).replace("-","");
-        stringBuilder.append(nowDate);
 
-        //中间6位为自增序列
-        //获取当前sequence
-        int sequence = 0;
-        SequenceDO sequenceDO =  sequenceDOMapper.getSequenceByName("order_info");
-        sequence = sequenceDO.getCurrentValue();
-        sequenceDO.setCurrentValue(sequenceDO.getCurrentValue() + sequenceDO.getStep());
-        sequenceDOMapper.updateByPrimaryKeySelective(sequenceDO);
-        String sequenceStr = String.valueOf(sequence);
-        for(int i = 0; i < 6-sequenceStr.length();i++){
-            stringBuilder.append(0);
-        }
-        stringBuilder.append(sequenceStr);
-
-
-        //最后2位为分库分表位,暂时写死
-        stringBuilder.append("00");
-
-        return stringBuilder.toString();
-    }
     private OrderDO convertFromOrderModel(OrderModel orderModel){
         if(orderModel == null){
             return null;

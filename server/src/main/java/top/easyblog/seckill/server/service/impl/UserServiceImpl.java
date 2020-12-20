@@ -1,5 +1,7 @@
 package top.easyblog.seckill.server.service.impl;
 
+import com.alibaba.fastjson.JSON;
+import org.springframework.boot.autoconfigure.AutoConfigureOrder;
 import top.easyblog.seckill.model.entity.UserDO;
 import top.easyblog.seckill.model.entity.UserPasswordDO;
 import top.easyblog.seckill.model.UserModel;
@@ -7,6 +9,7 @@ import top.easyblog.seckill.model.mapper.UserDOMapper;
 import top.easyblog.seckill.api.error.BusinessException;
 import top.easyblog.seckill.api.error.EmBusinessError;
 import top.easyblog.seckill.api.service.UserService;
+import top.easyblog.seckill.server.service.RedisService;
 import top.easyblog.seckill.server.validator.ValidatorImpl;
 import top.easyblog.seckill.server.validator.ValidationResult;
 import org.apache.commons.lang3.StringUtils;
@@ -33,6 +36,11 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private ValidatorImpl validator;
 
+    @Autowired
+    private RedisService redisService;
+
+    private static final String USER_VALIDATE_PREFIX="user_validate_";
+
     @Override
     public UserModel getUserById(Integer id) {
         //调用userdomapper获取到对应的用户dataobject
@@ -46,8 +54,22 @@ public class UserServiceImpl implements UserService {
         return convertFromDataObject(userDO,userPasswordDO);
     }
 
+
     @Override
-    @Transactional
+    public UserModel getUserByIdInCache(Integer userId) {
+        if(userId<=0){
+            return null;
+        }
+        UserModel userModel = JSON.parseObject((String) redisService.get(USER_VALIDATE_PREFIX + userId, RedisService.RedisDataBaseSelector.DB_0), UserModel.class);
+        if(userModel==null){
+            userModel =this.getUserById(userId);
+            redisService.set(USER_VALIDATE_PREFIX + userId,JSON.toJSONString(userModel),600, RedisService.RedisDataBaseSelector.DB_0);
+        }
+        return userModel;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public void register(UserModel userModel) throws BusinessException {
         if(userModel == null){
             throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR);

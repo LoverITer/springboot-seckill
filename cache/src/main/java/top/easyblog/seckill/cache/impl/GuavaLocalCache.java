@@ -1,9 +1,14 @@
 package top.easyblog.seckill.cache.impl;
 
 
-import com.google.common.cache.*;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.LoadingCache;
+import com.google.common.cache.RemovalCause;
+import io.netty.handler.codec.json.JsonObjectDecoder;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.rocketmq.common.message.Message;
 import top.easyblog.seckill.cache.CacheSyncPolicy;
 import top.easyblog.seckill.cache.Level1Cache;
 import top.easyblog.seckill.cache.conf.BaseCacheConfig;
@@ -25,7 +30,7 @@ import java.util.concurrent.TimeUnit;
  * @date 2020/6/29 16:55
  */
 @Slf4j
-public class GuavaLocalCache<K,V>  extends AbstractAdaptingCache<K,V> implements Level1Cache<K,V> {
+public class GuavaLocalCache  extends AbstractAdaptingCache implements Level1Cache {
 
     /**
      * 缓存同步策略
@@ -35,19 +40,20 @@ public class GuavaLocalCache<K,V>  extends AbstractAdaptingCache<K,V> implements
     /**
      * L1 Guava Cache
      */
-    private Cache<K,V> commonCache;
+    private Cache<String, JSON> commonCache;
 
 
     public GuavaLocalCache(String cacheName, BaseCacheConfig cacheConfig) {
         super(cacheName, cacheConfig);
         //同步策略就是本地缓存同时使用的中间件以及策略
         this.cacheSyncPolicy = cacheConfig.getCacheSyncPolicy();
-        CacheBuilder<K,V> cacheBuilder = (CacheBuilder<K, V>) CacheBuilder.newBuilder();
+        CacheBuilder<Object, Object> cacheBuilder = CacheBuilder.newBuilder();
         GuavaCacheConfig guavaCacheConf=(GuavaCacheConfig)cacheConfig;
         cacheBuilder.initialCapacity(guavaCacheConf.getInitCapacity());
         cacheBuilder.concurrencyLevel(guavaCacheConf.getMaxConcurrencyLevel());
         cacheBuilder.maximumSize(guavaCacheConf.getMaxCapacity());
-        cacheBuilder.expireAfterWrite(guavaCacheConf.getExpireTime().getExpireTime(), TimeUnit.SECONDS);
+        GuavaCacheConfig.ExpireTime expireTime = guavaCacheConf.getExpireTime();
+        cacheBuilder.expireAfterWrite(expireTime.getExpireTime(), expireTime.getTimeUnit());
         cacheBuilder.removalListener(notification -> {
             final RemovalCause cause = notification.getCause();
             switch (cause) {
@@ -59,17 +65,13 @@ public class GuavaLocalCache<K,V>  extends AbstractAdaptingCache<K,V> implements
                 case COLLECTED:
                     //如果是缓存到期等原因被删除，则需要通知分布式环境下的其他机器也要删除
                     CacheSyncPolicy cacheSyncPolicy = guavaCacheConf.getCacheSyncPolicy();
-                    cacheSyncPolicy.publish(createMessage(notification.getKey(), CacheOpt.CACHE_CLEAR));
-                    break;
-                //缓存显示删除（这里没有调用是避免事件循环）
-                case EXPLICIT:
-                    //缓存显示替换（这了没有调用是避免事件循环）
-                case REPLACED:
+                    cacheSyncPolicy.publish(createMessage(notification.getKey().toString(), null, CacheOpt.CACHE_CLEAR));
                     break;
                 default:
-                    log.error("there should not be [{}]", cause);
+                    log.warn("there should not be [{}]", cause);
             }
         });
+
         this.commonCache = cacheBuilder.build();
         if (guavaCacheConf.isAutoRefreshExpireCache()) {
             // 定期刷新过期的缓存
@@ -86,7 +88,7 @@ public class GuavaLocalCache<K,V>  extends AbstractAdaptingCache<K,V> implements
     
 
     @Override
-    public Cache<K,V> getActualCache() {
+    public Cache getActualCache() {
         return this.commonCache;
     }
 
@@ -103,26 +105,26 @@ public class GuavaLocalCache<K,V>  extends AbstractAdaptingCache<K,V> implements
 
 
     @Override
-    public void put(K key, V value) {
+    public void put(String key, JSON value) {
         commonCache.put(key, value);
         if (null != cacheSyncPolicy) {
             //本地缓存放入缓存，通过MQ通知其他节点同步
-            cacheSyncPolicy.publish(createMessage(key, CacheOpt.CACHE_REFRESH));
+            cacheSyncPolicy.publish(createMessage(key,value, CacheOpt.CACHE_REFRESH));
         }
     }
 
     @Override
-    public V get(K key) {
+    public JSON get(String key) {
         return this.commonCache.getIfPresent(key);
     }
 
     @Override
-    public void evict(K key) {
+    public void evict(String key) {
         log.debug("GuavaCache evict cache, cacheName={}, key={}", this.getCacheName(), key);
         commonCache.invalidate(key);
         if (null != cacheSyncPolicy) {
             //本地缓存失效，通过MQ通知其他节点同步
-            cacheSyncPolicy.publish(createMessage(key, CacheOpt.CACHE_CLEAR));
+            cacheSyncPolicy.publish(createMessage(key, null,CacheOpt.CACHE_CLEAR));
         }
     }
 
@@ -132,19 +134,19 @@ public class GuavaLocalCache<K,V>  extends AbstractAdaptingCache<K,V> implements
         commonCache.invalidateAll();
         if (null != cacheSyncPolicy) {
             //本地缓存被清理，通知其他节点也清理
-            cacheSyncPolicy.publish(createMessage(null, CacheOpt.CACHE_CLEAR));
+            cacheSyncPolicy.publish(createMessage(null, null, CacheOpt.CACHE_CLEAR));
         }
     }
 
     @Override
-    public boolean isExists(K key) {
+    public boolean isExists(String key) {
         boolean rslt = commonCache.asMap().containsKey(key);
         log.debug("[GuavaCache] key is exists, cacheName={}, key={}, rslt={}", this.getCacheName(), key, rslt);
         return rslt;
     }
 
     @Override
-    public void clearLocalCache(K key) {
+    public void clearLocalCache(String key) {
         log.info("GuavaCache clear local cache, cacheName={}, key={}", this.getCacheName(), key);
         if (key == null) {
             commonCache.invalidateAll();
@@ -154,26 +156,21 @@ public class GuavaLocalCache<K,V>  extends AbstractAdaptingCache<K,V> implements
     }
 
     @Override
-    public void refresh(K key) {
-        if (isLoadingCache()) {
-            log.debug("GuavaCache refresh cache, cacheName={}, key={}", this.getCacheName(), key);
-            ((LoadingCache) commonCache).refresh(key);
-        }
+    public void refresh(String key,JSON value) {
+        log.debug("GuavaCache refresh cache, cacheName={}, key={}", this.getCacheName(), key);
+        commonCache.put(key, value);
+        log.info("GuavaCache refresh cache success, cacheName={}, key={}", this.getCacheName(), key);
     }
 
     @Override
     public void refreshAll() {
-        if (isLoadingCache()) {
-            LoadingCache loadingCache = (LoadingCache) commonCache;
-            for (Object key : loadingCache.asMap().keySet()) {
-                log.debug("GuavaCache refreshAll cache, cacheName={}, key={}", this.getCacheName(), key);
-                loadingCache.refresh(key);
-            }
+        for (String key : commonCache.asMap().keySet()) {
+            commonCache.put(key,commonCache.getIfPresent(key));
         }
     }
 
     @Override
-    public void refreshExpireCache(Object key) {
+    public void refreshExpireCache(String key) {
         if (isLoadingCache()) {
             log.debug("GuavaCache refreshExpireCache, cacheName={}, key={}", this.getCacheName(), key);
             try {
@@ -202,11 +199,12 @@ public class GuavaLocalCache<K,V>  extends AbstractAdaptingCache<K,V> implements
         }
     }
 
-    private CacheMessage createMessage(Object key, String optType) {
+    private CacheMessage createMessage(String key, JSON value, String optType) {
         return new CacheMessage()
                 .setInstanceId(RandomUtil.getUUID())
                 .setCacheName(this.getInstanceId())
                 .setKey(key)
+                .setValue(value)
                 .setOptType(optType);
     }
 

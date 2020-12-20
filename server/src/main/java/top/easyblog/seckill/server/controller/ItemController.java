@@ -1,10 +1,13 @@
 package top.easyblog.seckill.server.controller;
 
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import org.joda.time.format.DateTimeFormat;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import top.easyblog.seckill.model.vo.ItemVO;
 import top.easyblog.seckill.api.error.AppResponseCode;
@@ -71,7 +74,7 @@ public class ItemController extends BaseController {
         ItemModel itemModelForReturn = itemService.createItem(itemModel);
         String itemCacheKey = String.format("%s%d", ITEM_CACHE_KEY_PREFIX, itemModelForReturn.getId());
         redisService.delete(RedisService.RedisDataBaseSelector.DB_0,ITEM_LISTS_CACHE);
-        redisService.hset(ITEM_CACHE_MAPPING_KEY,itemCacheKey, JSON.toJSONString(itemModel), 60 * 10 * 1000, RedisService.RedisDataBaseSelector.DB_0);
+        redisService.hset(ITEM_CACHE_MAPPING_KEY,itemCacheKey, JSON.toJSONString(itemModel), 600, RedisService.RedisDataBaseSelector.DB_0);
         ItemVO itemVO = convertVOFromModel(itemModelForReturn);
 
         return CommonResponse.create(AppResponseCode.SUCCESS, itemVO);
@@ -83,7 +86,7 @@ public class ItemController extends BaseController {
     public CommonResponse<ItemVO> getItem(@RequestParam(name = "id") Integer id) {
         String itemCacheKey = String.format("%s%d", ITEM_CACHE_KEY_PREFIX, id);
         //采用多级缓存：首先到本地JVM缓存中查找需要的值，找到直接返回，没找到再去Redis缓存中查询，在没找到就去数据库查询
-        ItemModel itemModel = (ItemModel)localCacheService.get(itemCacheKey);
+        ItemModel itemModel = JSON.toJavaObject(localCacheService.get(itemCacheKey),ItemModel.class);
         if(itemModel==null) {
             System.out.println("本地缓存没有命中");
             //先从redis中查询对应商品的信息
@@ -91,10 +94,10 @@ public class ItemController extends BaseController {
             if (itemModel == null) {
                 //redis中没有对应商品信息，就从数据库查询
                 itemModel = itemService.getItemById(id);
-                //将商品信息存放到hash中
-                redisService.hset(ITEM_CACHE_MAPPING_KEY, itemCacheKey, JSON.toJSONString(itemModel), 60 * 10 * 1000, RedisService.RedisDataBaseSelector.DB_0);
+                //将商品信息存放到hash中 有效时间10分钟
+                redisService.hset(ITEM_CACHE_MAPPING_KEY, itemCacheKey, JSON.toJSONString(itemModel), 600, RedisService.RedisDataBaseSelector.DB_0);
             }
-            localCacheService.set(itemCacheKey,itemModel);
+            localCacheService.set(itemCacheKey,(JSONObject) JSON.toJSON(itemModel));
         }
 
         ItemVO itemVO = convertVOFromModel(itemModel);
@@ -111,34 +114,29 @@ public class ItemController extends BaseController {
     @ResponseBody
     public CommonResponse<List<ItemVO>> listItem() {
 
-        List<ItemModel> itemModelList = (List<ItemModel> )localCacheService.get(ITEM_LISTS_CACHE);
+        List<ItemModel> itemModelList = null;
+        //首先从本地缓存中查询数据
+        JSONArray jsonArray = (JSONArray)localCacheService.get(ITEM_LISTS_CACHE);
+        if(!StringUtils.isEmpty(jsonArray)){
+            itemModelList=JSON.parseArray(jsonArray.toString(),ItemModel.class);
+        }
         if(itemModelList==null) {
-            Object obj = redisService.get(ITEM_LISTS_CACHE, RedisService.RedisDataBaseSelector.DB_0);
-            String[] itemLists = obj == null ? null : obj.toString().replace("[", "").replace("]", "").split("},");
-            if (itemLists != null) {
-                itemModelList = new ArrayList<>();
-                for (int i = 0; i < itemLists.length; i++) {
-                    if (i != itemLists.length - 1) {
-                        itemLists[i] += "}";
-                    }
-                    itemModelList.add(JSON.parseObject(itemLists[i], ItemModel.class));
-                }
-            } else {
-                itemModelList = itemService.listItem();
-                redisService.set(ITEM_LISTS_CACHE, JSON.toJSONString(itemModelList), RedisService.RedisDataBaseSelector.DB_0);
+            //本地缓存没有去Redis缓存中查询
+            String jsonStr = (String)redisService.get(ITEM_LISTS_CACHE, RedisService.RedisDataBaseSelector.DB_0);
+            if(!StringUtils.isEmpty(jsonStr)){
+                itemModelList=JSON.parseArray(jsonStr,ItemModel.class);
             }
-            localCacheService.set(ITEM_LISTS_CACHE,itemModelList);
+
+            if(itemModelList==null){
+                //Redis缓存中没有直接去数据库查询
+                itemModelList = itemService.listItem();
+                redisService.set(ITEM_LISTS_CACHE, JSON.toJSONString(itemModelList),600, RedisService.RedisDataBaseSelector.DB_0);
+            }
+            localCacheService.set(ITEM_LISTS_CACHE, (JSONArray)JSON.toJSON(itemModelList));
         }
         //使用stream api将list内的itemModel转化为ITEMVO;
         List<ItemVO> itemVOList = itemModelList.stream().map(this::convertVOFromModel).collect(Collectors.toList());
         return CommonResponse.create(AppResponseCode.SUCCESS, itemVOList);
-    }
-
-
-    @RequestMapping(value = "/test", method = {RequestMethod.GET})
-    @ResponseBody
-    public CommonResponse<String> test(){
-        return CommonResponse.create(AppResponseCode.SUCCESS);
     }
 
 

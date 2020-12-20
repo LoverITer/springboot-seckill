@@ -4,16 +4,27 @@ import top.easyblog.seckill.api.error.BusinessException;
 import top.easyblog.seckill.model.UserModel;
 
 /**
- * Created by hzllb on 2018/11/11.
+ *
+ * @author Huang Xin
  */
 public interface UserService {
-    //通过用户ID获取用户对象的方法
+    /**
+     * 通过用户ID获取用户对象的方法
+     * @param id
+     * @return
+     */
     UserModel getUserById(Integer id);
+
+
+    UserModel getUserByIdInCache(Integer userId);
+
+
     void register(UserModel userModel) throws BusinessException;
 
-    /*
-    telphone:用户注册手机
-    password:用户加密后的密码
+
+    /**
+    *telphone:用户注册手机
+    *password:用户加密后的密码
      */
     UserModel validateLogin(String telphone,String encrptPassword) throws BusinessException, BusinessException;
 }

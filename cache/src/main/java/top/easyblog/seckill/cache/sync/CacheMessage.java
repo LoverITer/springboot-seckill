@@ -1,5 +1,7 @@
 package top.easyblog.seckill.cache.sync;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
@@ -38,7 +40,14 @@ public class CacheMessage implements Serializable {
     /**
      * 缓存key
      */
-    private Object key;
+    private String key;
+
+
+    /**
+     * 缓存的内容
+     */
+    private JSON value;
+
 
     /**
      * 消息的状态
@@ -59,7 +68,7 @@ public class CacheMessage implements Serializable {
 
     }
 
-    public CacheMessage(String instanceId, String cacheName, Object key, String optType) {
+    public CacheMessage(String instanceId, String cacheName, String key, String optType) {
         this.instanceId = instanceId;
         this.cacheName = cacheName;
         this.key = key;
