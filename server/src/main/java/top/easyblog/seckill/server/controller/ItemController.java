@@ -9,24 +9,24 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
-import top.easyblog.seckill.model.vo.ItemVO;
 import top.easyblog.seckill.api.error.AppResponseCode;
 import top.easyblog.seckill.api.error.BusinessException;
 import top.easyblog.seckill.api.response.CommonResponse;
 import top.easyblog.seckill.api.service.ItemService;
 import top.easyblog.seckill.api.service.LocalCacheService;
-import top.easyblog.seckill.server.service.RedisService;
+import top.easyblog.seckill.api.service.PromoService;
 import top.easyblog.seckill.model.ItemModel;
+import top.easyblog.seckill.model.vo.ItemVO;
+import top.easyblog.seckill.server.service.RedisService;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 /**
  * @author Huangxin
  */
-@Controller("/item")
+@Controller
 @RequestMapping("/item")
 @CrossOrigin(origins = {"*"}, allowCredentials = "true")
 public class ItemController extends BaseController {
@@ -53,6 +53,9 @@ public class ItemController extends BaseController {
 
     @Autowired
     private LocalCacheService localCacheService;
+
+    @Autowired
+    private PromoService promoService;
 
 
     //创建商品的controller
@@ -137,6 +140,19 @@ public class ItemController extends BaseController {
         //使用stream api将list内的itemModel转化为ITEMVO;
         List<ItemVO> itemVOList = itemModelList.stream().map(this::convertVOFromModel).collect(Collectors.toList());
         return CommonResponse.create(AppResponseCode.SUCCESS, itemVOList);
+    }
+
+
+    /**
+     * 发布活动
+     *
+     * @return
+     */
+    @RequestMapping(value = "/publish", method = {RequestMethod.GET})
+    @ResponseBody
+    public CommonResponse publishPromo() {
+        promoService.publishAllPromo();
+        return CommonResponse.create(AppResponseCode.SUCCESS);
     }
 
 

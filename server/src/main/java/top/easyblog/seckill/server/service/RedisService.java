@@ -425,37 +425,37 @@ public class RedisService {
     /**
      * 删除hash表中的值
      *
-     * @param key  键 不能为null
-     * @param item 项 可以使多个 不能为null
+     * @param hk  Redis中可以每一确定map的key
+     * @param key map中元素的key
      */
-    public Long hdel(RedisDataBaseSelector dbIndex, String key, Object... item) {
+    public Long hdel(RedisDataBaseSelector dbIndex, String hk, Object... key) {
         this.setDbIndex(dbIndex);
-        return redisHashOps.delete(key, item);
+        return redisHashOps.delete(hk, key);
     }
 
     /**
      * 判断hash表中是否有该项的值
      *
-     * @param key  键 不能为null
-     * @param item 项 不能为null
+     * @param hk  Redis中可以每一确定map的key
+     * @param key map中元素的key
      * @return true 存在 false不存在
      */
-    public boolean hHasKey(String key, String item, RedisDataBaseSelector dbIndex) {
+    public boolean hHasKey(String hk, String key, RedisDataBaseSelector dbIndex) {
         this.setDbIndex(dbIndex);
-        return redisHashOps.hasKey(key, item);
+        return redisHashOps.hasKey(hk, key);
     }
 
     /**
      * hash递增 如果不存在,就会创建一个 并把新增后的值返回
      *
-     * @param key   键
-     * @param item  项
+     * @param hk  Redis中可以每一确定map的key
+     * @param key map中元素的key
      * @param delta 要增加几(大于0)
      * @return
      */
-    public double hincr(String key, String item, double delta, RedisDataBaseSelector dbIndex) {
+    public double hincr(String hk, String key, double delta, RedisDataBaseSelector dbIndex) {
         this.setDbIndex(dbIndex);
-        return redisHashOps.increment(key, item, delta);
+        return redisHashOps.increment(hk, key, delta);
     }
 
     /**

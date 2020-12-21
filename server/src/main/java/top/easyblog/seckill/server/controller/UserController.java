@@ -7,15 +7,14 @@ import org.springframework.stereotype.Controller;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import sun.misc.BASE64Encoder;
-import top.easyblog.seckill.model.vo.UserVO;
 import top.easyblog.seckill.api.error.AppResponseCode;
 import top.easyblog.seckill.api.error.BusinessException;
 import top.easyblog.seckill.api.error.EmBusinessError;
 import top.easyblog.seckill.api.response.CommonResponse;
-import top.easyblog.seckill.server.service.RedisService;
 import top.easyblog.seckill.api.service.UserService;
 import top.easyblog.seckill.model.UserModel;
-import top.easyblog.seckill.api.utils.CookieUtils;
+import top.easyblog.seckill.model.vo.UserVO;
+import top.easyblog.seckill.server.service.RedisService;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -42,6 +41,10 @@ public class UserController extends BaseController {
     @Autowired
     private RedisService redisService;
 
+    private static final String OTP_CODE_MAP_KEY="opt_code_map";
+
+    private static final String OTP_CODE_PREFIX="opt_code_";
+
 
     //用户注册接口
     @RequestMapping(value = "/register", method = {RequestMethod.POST}, consumes = {CONTENT_TYPE_FORMED})
@@ -52,21 +55,26 @@ public class UserController extends BaseController {
                                    @RequestParam(name = "gender") Integer gender,
                                    @RequestParam(name = "age") Integer age,
                                    @RequestParam(name = "password") String password) throws BusinessException, UnsupportedEncodingException, NoSuchAlgorithmException {
-        //验证手机号和对应的otpcode相符合
-        String inSessionOtpCode = (String) this.httpServletRequest.getSession().getAttribute(telphone);
-        if (!com.alibaba.druid.util.StringUtils.equals(otpCode, inSessionOtpCode)) {
-            throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR, "短信验证码不符合");
+        try{
+            //验证手机号和对应的otpcode相符合
+            String OtpCode = (String)redisService.hget(OTP_CODE_MAP_KEY, OTP_CODE_PREFIX + telphone, RedisService.RedisDataBaseSelector.DB_0);
+
+            if (!StringUtils.isEmpty(OtpCode)&&!OtpCode.equals(otpCode)) {
+                throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR, "短信验证码不符合");
+            }
+            //用户的注册流程
+            UserModel userModel = new UserModel();
+            userModel.setName(name);
+            userModel.setGender(new Byte(String.valueOf(gender.intValue())));
+            userModel.setAge(age);
+            userModel.setTelphone(telphone);
+            userModel.setRegisterMode("byphone");
+            userModel.setEncrptPassword(this.EncodeByMd5(password));
+            userService.register(userModel);
+            return CommonResponse.create(AppResponseCode.SUCCESS);
+        }finally {
+            redisService.hdel(RedisService.RedisDataBaseSelector.DB_0,OTP_CODE_MAP_KEY, OTP_CODE_PREFIX + telphone);
         }
-        //用户的注册流程
-        UserModel userModel = new UserModel();
-        userModel.setName(name);
-        userModel.setGender(new Byte(String.valueOf(gender.intValue())));
-        userModel.setAge(age);
-        userModel.setTelphone(telphone);
-        userModel.setRegisterMode("byphone");
-        userModel.setEncrptPassword(this.EncodeByMd5(password));
-        userService.register(userModel);
-        return CommonResponse.create(AppResponseCode.SUCCESS);
     }
 
     public String EncodeByMd5(String str) throws NoSuchAlgorithmException, UnsupportedEncodingException {
@@ -88,15 +96,11 @@ public class UserController extends BaseController {
         int randomInt = random.nextInt(99999);
         randomInt += 10000;
         String otpCode = String.valueOf(randomInt);
+        //将验证码尺寸到Redis中，用户注册的时候验证手机号的有效性
+        redisService.hset(OTP_CODE_MAP_KEY,OTP_CODE_PREFIX+telphone,otpCode,300, RedisService.RedisDataBaseSelector.DB_0);
 
-
-        //将OTP验证码同对应用户的手机号关联，使用httpsession的方式绑定他的手机号与OTPCODE
-        httpServletRequest.getSession().setAttribute(telphone, otpCode);
-
-
-        //将OTP验证码通过短信通道发送给用户,省略
+        //短信服务：将OTP验证码通过短信通道发送给用户,省略
         System.out.println("telphone = " + telphone + " & otpCode = " + otpCode);
-
 
         return CommonResponse.create(AppResponseCode.SUCCESS);
     }
@@ -129,6 +133,7 @@ public class UserController extends BaseController {
         BeanUtils.copyProperties(userModel, userVO);
         return userVO;
     }
+
 
 
     /**
@@ -165,8 +170,6 @@ public class UserController extends BaseController {
             return CommonResponse.create(AppResponseCode.USER_LOGIN_REPEAT, "您已登录,请不要重复登录");
         }
         redisService.expire(userLoginToken, MAX_USER_LOGIN_STATUS_KEEP_TIME, RedisService.RedisDataBaseSelector.DB_0);
-        //将用户的登录token放入cookie中，或者也可以传给前端让前端存放在localSession等结构中
-        CookieUtils.setCookie(request, response, USER_SESSION_REDIS_KEY, userLoginToken, MAX_USER_LOGIN_STATUS_KEEP_TIME);
 
         return CommonResponse.create(AppResponseCode.USER_LOGIN_SUCCESS, userLoginToken);
     }

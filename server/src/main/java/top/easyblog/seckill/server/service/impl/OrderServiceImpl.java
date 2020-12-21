@@ -13,7 +13,6 @@ import top.easyblog.seckill.model.ItemModel;
 import top.easyblog.seckill.model.OrderModel;
 import top.easyblog.seckill.model.entity.OrderDO;
 import top.easyblog.seckill.model.mapper.OrderDOMapper;
-import top.easyblog.seckill.model.mapper.SequenceDOMapper;
 import top.easyblog.seckill.server.service.IDGenerationService;
 import top.easyblog.seckill.server.service.RocketMQProducerService;
 
@@ -26,8 +25,6 @@ import java.math.BigDecimal;
 @Service
 public class OrderServiceImpl implements OrderService {
 
-    @Autowired
-    private SequenceDOMapper sequenceDOMapper;
 
     @Autowired
     private ItemService itemService;
@@ -76,7 +73,7 @@ public class OrderServiceImpl implements OrderService {
         }*/
 
         //2.校验下单状态,下单的商品是否存在，购买数量是否足够
-        ItemModel itemModel = itemService.getItemById(itemId);
+        ItemModel itemModel = itemService.getItemByIdInCache(itemId);
         if (itemModel == null || itemModel.getStock() < 0) {
             throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR, "商品不存在或者未在秒杀时间段");
         }
@@ -100,13 +97,13 @@ public class OrderServiceImpl implements OrderService {
             }
         }
 
-        //5. 落单减库存
+        //5. 落单减库存 ，只是预减库存
         boolean result = itemService.decreaseStock(itemId,amount);
         if(!result){
             throw new BusinessException(EmBusinessError.STOCK_NOT_ENOUGH);
         }
 
-        //6. 订单入库
+        //6. 预订单入库
         OrderModel orderModel = new OrderModel();
         orderModel.setUserId(userId);
         orderModel.setItemId(itemId);

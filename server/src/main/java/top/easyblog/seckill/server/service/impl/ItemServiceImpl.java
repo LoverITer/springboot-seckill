@@ -17,6 +17,7 @@ import top.easyblog.seckill.model.entity.ItemStockDO;
 import top.easyblog.seckill.model.mapper.ItemDOMapper;
 import top.easyblog.seckill.model.mapper.ItemStockDOMapper;
 import top.easyblog.seckill.server.service.RedisService;
+import top.easyblog.seckill.server.service.RocketMQProducerService;
 import top.easyblog.seckill.server.validator.ValidationResult;
 import top.easyblog.seckill.server.validator.ValidatorImpl;
 
@@ -44,6 +45,9 @@ public class ItemServiceImpl implements ItemService {
 
     @Autowired
     private RedisService redisService;
+
+    @Autowired
+    private RocketMQProducerService rocketMQProducerService;
 
 
     private static final String ITEM_VALIDATE_PREFIX = "item_validate_";
@@ -147,7 +151,22 @@ public class ItemServiceImpl implements ItemService {
     @Override
     @Transactional(rollbackFor = Exception.class, propagation = Propagation.REQUIRES_NEW)
     public boolean decreaseStock(Integer itemId, Integer amount) throws BusinessException {
-        return itemStockDOMapper.decreaseStock(itemId, amount) > 0;
+        //直接从Redis缓存中扣减库存
+        int stock = (int) redisService.hdecr(PromoServiceImpl.PROMO_ITEM_MAP, PromoServiceImpl.PROMO_ITEM_STOCK_PREFIX + itemId, 1, RedisService.RedisDataBaseSelector.DB_0);
+        if (stock >= 0) {
+            //扣减库存成功，接下来通过MQ异步库建数据库的库存
+            boolean sendResult = rocketMQProducerService.sendAsyncDecrStockMsg(itemId, amount);
+            if (!sendResult) {
+                //消息发送事变，需要回复redis的库存
+                redisService.hincr(PromoServiceImpl.PROMO_ITEM_MAP, PromoServiceImpl.PROMO_ITEM_STOCK_PREFIX + itemId, 1, RedisService.RedisDataBaseSelector.DB_0);
+                return false;
+            }
+            return true;
+        } else {
+            //扣减库存失败,需要恢复刚才已经扣减的
+            redisService.hincr(PromoServiceImpl.PROMO_ITEM_MAP, PromoServiceImpl.PROMO_ITEM_STOCK_PREFIX + itemId, 1, RedisService.RedisDataBaseSelector.DB_0);
+            return false;
+        }
     }
 
     @Override

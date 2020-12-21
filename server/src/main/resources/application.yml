@@ -1,5 +1,5 @@
 #开发环境
-host-sub-ip: 192.168.86 #主机子ip
+host-sub-ip: 192.168.187 #主机子ip
 server:
   port: 9091
   connection-timeout: 20000  #超时时间20s
@@ -131,7 +131,7 @@ mq:
       group: kill-success-email-group
     topic: kill-success-email-topic
   #订单超时为支付的topic
-  order:
+  timeout-order:
     consumer:
       group: order-timout-group
     topic: order-timeout-topic
@@ -139,3 +139,7 @@ mq:
     consumer:
       group: local-cache-brodcast
     topic: local-cache-toppic
+  async-stock:
+    consumer:
+      group: sync-stock-group
+    topic: sync-stock-topic

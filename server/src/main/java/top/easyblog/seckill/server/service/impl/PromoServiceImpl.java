@@ -1,15 +1,19 @@
 package top.easyblog.seckill.server.service.impl;
 
-import top.easyblog.seckill.model.mapper.PromoDOMapper;
-import top.easyblog.seckill.model.entity.PromoDO;
-import top.easyblog.seckill.api.service.PromoService;
-import top.easyblog.seckill.model.PromoModel;
 import org.joda.time.DateTime;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import top.easyblog.seckill.api.service.ItemService;
+import top.easyblog.seckill.api.service.PromoService;
+import top.easyblog.seckill.model.ItemModel;
+import top.easyblog.seckill.model.PromoModel;
+import top.easyblog.seckill.model.entity.PromoDO;
+import top.easyblog.seckill.model.mapper.PromoDOMapper;
+import top.easyblog.seckill.server.service.RedisService;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * Created by hzllb on 2018/11/18.
@@ -19,6 +23,22 @@ public class PromoServiceImpl implements PromoService {
 
     @Autowired
     private PromoDOMapper promoDOMapper;
+
+    @Autowired
+    private ItemService itemService;
+
+    @Autowired
+    private RedisService redisService;
+
+    /**
+     * redis商品库存key
+     */
+    public static final String PROMO_ITEM_STOCK_PREFIX="promo_item_stock_";
+
+    /**
+     * 商品库存map 的 key
+     */
+    public static final String PROMO_ITEM_MAP="promo_item_map";
 
     @Override
     public PromoModel getPromoByItemId(Integer itemId) {
@@ -41,7 +61,34 @@ public class PromoServiceImpl implements PromoService {
         }
         return promoModel;
     }
-    private PromoModel convertFromDataObject(PromoDO promoDO){
+
+    @Override
+    public void publishPromo(Integer id){
+        //通过活动id获取活动
+        PromoDO promoDO = promoDOMapper.selectByPrimaryKey(id);
+        if(promoDO==null||promoDO.getItemId()==0){
+            return;
+        }
+        ItemModel itemModel = itemService.getItemById(promoDO.getItemId());
+        //发布活动之后将库存信息缓存到redis中
+        redisService.hset(PROMO_ITEM_MAP,PROMO_ITEM_STOCK_PREFIX+itemModel.getId(),itemModel.getStock(), RedisService.RedisDataBaseSelector.DB_0);
+    }
+
+
+    public void publishAllPromo(){
+        List<PromoDO> promos = promoDOMapper.selectAll();
+        if(promos==null||promos.size()==0){
+            return;
+        }
+        promos.forEach(promoDO -> {
+            ItemModel itemModel = itemService.getItemById(promoDO.getItemId());
+            //发布活动之后将库存信息缓存到redis中
+            redisService.hset(PROMO_ITEM_MAP,PROMO_ITEM_STOCK_PREFIX+itemModel.getId(),itemModel.getStock(), RedisService.RedisDataBaseSelector.DB_0);
+        });
+    }
+
+
+   private PromoModel convertFromDataObject(PromoDO promoDO){
         if(promoDO == null){
             return null;
         }

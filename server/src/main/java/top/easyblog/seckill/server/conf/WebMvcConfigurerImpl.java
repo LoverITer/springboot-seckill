@@ -37,7 +37,7 @@ public class WebMvcConfigurerImpl implements WebMvcConfigurer {
          * 排除拦截classpath:/static下的所有静态资源
          */
         registration.excludePathPatterns("/static/**");
-        registration.excludePathPatterns("/top/easyblog/seckill/api/error");
+        registration.excludePathPatterns("/error");
         registration.excludePathPatterns("/**.*.html");
         registration.excludePathPatterns("/");
         /**
@@ -52,16 +52,16 @@ public class WebMvcConfigurerImpl implements WebMvcConfigurer {
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         registry.addResourceHandler("/static/**").addResourceLocations("classpath:/static/");
-        registry.addResourceHandler("/upload/**").addResourceLocations("file:D:/upload/");
-        registry.addResourceHandler("/robots.txt").addResourceLocations("classpath:/robots.txt");
         WebMvcConfigurer.super.addResourceHandlers(registry);
     }
 
     @Override
     public void addViewControllers(ViewControllerRegistry registry) {
         //登录
-        registry.addViewController("/user/login").setViewName("login");
-
+        registry.addViewController("/login.html").setViewName("login");
+        registry.addViewController("/getitem.html").setViewName("getitem");
+        registry.addViewController("/getotp.html").setViewName("getotp");
+        registry.addViewController("/register.html").setViewName("register");
     }
 
 

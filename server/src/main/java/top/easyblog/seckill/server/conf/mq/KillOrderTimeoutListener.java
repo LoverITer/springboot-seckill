@@ -20,8 +20,8 @@ import top.easyblog.seckill.server.service.MailService;
 @Slf4j
 @Component
 @RocketMQMessageListener(
-        consumerGroup = "${mq.order.consumer.group}",
-        topic = "${mq.order.topic}",
+        consumerGroup = "${mq.timeout-order.consumer.group}",
+        topic = "${mq.timeout-order.topic}",
         selectorType = SelectorType.TAG,
         selectorExpression = "*")
 public class KillOrderTimeoutListener implements RocketMQListener<MessageExt> {

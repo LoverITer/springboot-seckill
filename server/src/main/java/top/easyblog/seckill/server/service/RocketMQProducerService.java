@@ -10,10 +10,8 @@ import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 import top.easyblog.seckill.api.error.AppResponseCode;
 import top.easyblog.seckill.api.error.BusinessException;
-import top.easyblog.seckill.api.error.EmBusinessError;
 import top.easyblog.seckill.model.OrderModel;
 import top.easyblog.seckill.model.mapper.OrderDOMapper;
 
@@ -37,13 +35,14 @@ public class RocketMQProducerService {
     @Value(value = "${mq.email.topic}")
     private String emailTopic;
 
-    @Value(value = "${mq.order.topic}")
+    @Value(value = "${mq.timeout-order.topic}")
     private String orderTopic;
+
 
     /**
      * 秒杀成功异步发送邮件通知消息
      */
-    public SendResult sendKillSuccessMsg(OrderModel order) throws BusinessException {
+    public boolean sendKillSuccessMsg(OrderModel order) throws BusinessException {
         if (Objects.isNull(order)) {
             throw new BusinessException(AppResponseCode.ORDER_INVALID);
         }
@@ -55,15 +54,15 @@ public class RocketMQProducerService {
             SendResult sendResult = producer.send(emailMsg);;
             if (sendResult != null && sendResult.getSendStatus() == SendStatus.SEND_OK) {
                 log.info("秒杀成功[订单ID:{}] 异步发送邮件通知消息-消息发送成功", order.getId());
+                return true;
             } else {
                 //3次都失败了抛出异常
                 throw new BusinessException(AppResponseCode.MQ_SEND_MESSAGE_FAIL);
             }
-            return sendResult;
         } catch (Exception e) {
             e.printStackTrace();
             log.error("秒杀成功[订单ID:{}] 异步发送邮件通知消息-发生异常，错误为：{}", order.getId(), e.getMessage());
-            return null;
+            return false;
         }
 
     }
@@ -72,7 +71,7 @@ public class RocketMQProducerService {
      * 秒杀成功后生成抢购订单-发送延时消息等待着1小时，如果订单任然没有支付。那就将未支付的订单失效
      * @return
      */
-    public SendResult sendKillSuccessMonitorOrderTimOutMsg(OrderModel order) throws BusinessException{
+    public boolean sendKillSuccessMonitorOrderTimOutMsg(OrderModel order) throws BusinessException{
         if (Objects.isNull(order)) {
             throw new BusinessException(AppResponseCode.ORDER_INVALID);
         }
@@ -88,17 +87,16 @@ public class RocketMQProducerService {
             SendResult sendResult = producer.send(orderMsg);;
             if (sendResult != null && sendResult.getSendStatus() == SendStatus.SEND_OK) {
                 log.info("秒杀成功[订单ID:{}]发送订单超时监控消息-消息发送成功", order.getId());
+                return true;
             } else {
                 //没有超过就抛出异常重试
                 throw new BusinessException(AppResponseCode.MQ_SEND_MESSAGE_FAIL);
             }
-            return sendResult;
         } catch (Exception e) {
             e.printStackTrace();
             log.error("秒杀成功[订单ID:{}] 发送订单超时监控消息-发生异常，准备重试，错误为：{}", order.getId(), e.getMessage());
-            return null;
+            return false;
         }
     }
-
 
 }
