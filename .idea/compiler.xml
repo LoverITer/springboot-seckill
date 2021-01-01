@@ -6,10 +6,7 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
-        <module name="cache" />
-        <module name="api" />
-        <module name="server" />
-        <module name="model" />
+        <module name="springboot-seckill" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
@@ -26,7 +23,7 @@
       <module name="cache" options="-parameters" />
       <module name="model" options="-parameters" />
       <module name="server" options="-parameters" />
-      <module name="springboot-seckill" options="" />
+      <module name="springboot-seckill" options="-parameters" />
     </option>
   </component>
 </project>

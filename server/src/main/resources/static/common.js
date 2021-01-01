@@ -1,2 +1,0 @@
-var USER_LOGIN_TOKEN="USER_LOGIN_TOKEN";
-var HOST="localhost";

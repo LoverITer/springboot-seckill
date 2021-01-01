@@ -1,0 +1,43 @@
+{
+  "properties": [
+    {
+      "name": "mq.async-stock.consumer.group",
+      "type": "java.lang.String",
+      "description": "Description for mq.sync-stock.consumer.group."
+    },
+    {
+      "name": "mq.async-stock.topic",
+      "type": "java.lang.String",
+      "description": "Description for mq.sync-stock.topic."
+    },
+    {
+      "name": "mq.email.consumer.group",
+      "type": "java.lang.String",
+      "description": "Description for mq.email.consumer.group."
+    },
+    {
+      "name": "mq.email.topic",
+      "type": "java.lang.String",
+      "description": "Description for mq.email.topic."
+    },
+    {
+      "name": "mq.timeout-order.consumer.group",
+      "type": "java.lang.String",
+      "description": "Description for mq.order.consumer.group."
+    },
+    {
+      "name": "mq.timeout-order.topic",
+      "type": "java.lang.String",
+      "description": "Description for mq.order.topic."
+    },
+    {
+      "name": "mq.order-service.consumer.group",
+      "type": "java.lang.String",
+      "description": "Description for mq.order.consumer.group."
+    },
+    {
+      "name": "mq.order-service.topic",
+      "type": "java.lang.String",
+      "description": "Description for mq.order.topic."
+    }
+  ] }

@@ -6,14 +6,9 @@
 
     <groupId>top.easyblog.seckill</groupId>
     <artifactId>springboot-seckill</artifactId>
-    <packaging>pom</packaging>
+    <packaging>jar</packaging>
     <version>0.0.1_20201209</version>
-    <modules>
-        <module>api</module>
-        <module>server</module>
-        <module>model</module>
-        <module>cache</module>
-    </modules>
+
     <name>基于微服务SpringBoot的商城高并发抢单系统——springboot-seckill</name>
     <description>商城高并发抢单系统-秒杀系统</description>
 
