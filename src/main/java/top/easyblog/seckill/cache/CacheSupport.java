@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import top.easyblog.seckill.cache.sync.CacheMessage;
+import top.easyblog.seckill.cache.sync.ConcurrentLinkedHashMap;
 import top.easyblog.seckill.cache.utils.RandomUtil;
 
 import java.util.Map;
@@ -18,6 +19,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class CacheSupport {
 
+    private static int MESSAGE_RECORD_MAP_MAX_SIZE=512;
+
     /**
      * 缓存容器
      * Map<String,Map<cacheName,Cache>>
@@ -30,7 +33,7 @@ public class CacheSupport {
      *
      * Tips: 因为所有节点都订阅了同一频道，也会接听到自身广播的事件，所以节点在响应事件时，可以做幂等处理
      */
-    private  final ConcurrentHashMap<String, CacheMessage> MESSAGE_MAP =new ConcurrentHashMap<>(128);
+    private  final Map<String, CacheMessage> MESSAGE_MAP =new ConcurrentLinkedHashMap<>(MESSAGE_RECORD_MAP_MAX_SIZE);
 
 
 
@@ -74,16 +77,6 @@ public class CacheSupport {
     }
 
     public void setCacheSyncMessageRecord(String messageId,CacheMessage message){
-        if(MESSAGE_MAP.size()>=128){
-            MESSAGE_MAP.forEach((k,v)->{
-                //如果消息已经消费过了，那就将消息清除
-                //TODO ： 需要获取到消费端的消费情况
-                if(v.getStatus()==CacheMessage.CACHE_MESSAGE_CONSUMED_YET||
-                  v.getStatus()==CacheMessage.CACHE_MESSAGE_EXCEPTION){
-                    MESSAGE_MAP.remove(k);
-                }
-            });
-        }
         MESSAGE_MAP.put(messageId,message);
     }
 

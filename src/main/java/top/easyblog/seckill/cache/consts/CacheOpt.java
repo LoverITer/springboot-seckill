@@ -13,9 +13,4 @@ public class CacheOpt {
      */
     public static final String CACHE_REFRESH = "refresh";
     public static final String CACHE_CLEAR = "clear";
-
-    /**
-     * 分隔符
-     */
-    public static final String SPLIT = ":";
 }

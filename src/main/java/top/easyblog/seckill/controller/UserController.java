@@ -162,7 +162,8 @@ public class UserController extends BaseController {
         }
         //用户登陆服务,用来校验用户登陆是否合法
         UserModel userModel = userService.validateLogin(telphone, this.EncodeByMd5(password));
-        String userLoginToken = String.format(RedisKeyManager.USER_LOGIN_TOKEN, userModel.getId(), RandomUtil.getUUID());
+        //用户登录token的key:当前毫秒时间戳+UUID
+        String userLoginToken = String.format(RedisKeyManager.USER_LOGIN_TOKEN, System.currentTimeMillis(), RandomUtil.getUUID());
 
         Boolean res = redisService.setnx(userLoginToken, JSON.toJSONString(userModel),  RedisService.RedisDataBaseSelector.DB_0);
         if (res == null) {

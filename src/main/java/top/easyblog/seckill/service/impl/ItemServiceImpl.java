@@ -172,7 +172,7 @@ public class ItemServiceImpl implements ItemService {
             return true;
         } else if (stock == 0) {
             //库存售罄，在Redis中设置一个标志
-            redisService.set(RedisKeyManager.PROMO_STOCK_INVALID_PREFIX + itemId, "true", RedisService.RedisDataBaseSelector.DB_0);
+            redisService.set(RedisKeyManager.PROMO_STOCK_INVALID_PREFIX + itemId, true, RedisService.RedisDataBaseSelector.DB_0);
             return true;
         } else {
             //扣减库存失败,需要恢复刚才已经扣减的

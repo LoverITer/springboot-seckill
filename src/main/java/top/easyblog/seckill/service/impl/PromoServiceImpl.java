@@ -77,7 +77,7 @@ public class PromoServiceImpl implements PromoService {
             //将秒杀商品缓存到redis中,持久存储
             redisService.set(RedisKeyManager.ITEM_KEY_PREFIX + itemModel.getId(), JSON.toJSONString(itemModel), RedisService.RedisDataBaseSelector.DB_0);
             if(itemModel.getStock()==0) {
-               redisService.set(RedisKeyManager.PROMO_STOCK_INVALID_PREFIX + promoDO.getItemId(),"true",RedisService.RedisDataBaseSelector.DB_0);
+               redisService.set(RedisKeyManager.PROMO_STOCK_INVALID_PREFIX + promoDO.getItemId(),true,RedisService.RedisDataBaseSelector.DB_0);
             }else{
                 redisService.delete(RedisService.RedisDataBaseSelector.DB_0, RedisKeyManager.PROMO_STOCK_INVALID_PREFIX + promoDO.getItemId());
             }

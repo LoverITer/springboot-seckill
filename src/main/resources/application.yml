@@ -13,8 +13,8 @@ logging:
   config: classpath:logback-spring.xml
   file: log
   level:
-    root: info
-    top.easyblog.seckill: debug
+    root: error
+    top.easyblog.seckill: error
 
 #springboot相关配置
 spring:
